@@ -34,7 +34,7 @@ def write_list_in_json_format_to_file(list, file_name):
         
 def get_dates_link_file_names_not_yet_fetched():
     date_number_first = 41894  
-    date_number_last = 36892
+    date_number_last = 41092 #36892
     date_num_link_file_names = []
     links_file_name_fetched = os.listdir(os.getcwd()+'\\b_news_webpages_json_format\\')
     date_nums_fetched =  [string[38:48] for string in links_file_name_fetched]
@@ -51,6 +51,7 @@ def get_dates_link_file_names_not_yet_fetched():
 def fetch_news_webpages_save_data_in_json_format(q, ops_max_links_to_fetch_per_file = 2):
     while True:
         date_num_link_file_names = q.get()
+        print 'Working on file:', date_num_link_file_names
         for date_number, links_file_name in date_num_link_file_names :
             date_tup = xlrd.xldate_as_tuple(date_number,0)      
             date = str(date_tup[0])+'-'+str(date_tup[1])+'-'+str(date_tup[2])
@@ -81,19 +82,19 @@ def fetch_news_webpages_save_data_in_json_format(q, ops_max_links_to_fetch_per_f
 
     
 def main():
-    
     q = Queue(maxsize=0)
     num_threads = 10
     
     for i in range(num_threads):
-      worker = Thread(target=fetch_news_webpages_save_data_in_json_format, args=(q,))
-      worker.setDaemon(True)
-      worker.start()
+        worker = Thread(target=fetch_news_webpages_save_data_in_json_format, args=(q,))
+        worker.setDaemon(True)
+        worker.start()
     
     date_num_link_file_names = get_dates_link_file_names_not_yet_fetched()
 
     for x in date_num_link_file_names:
-      q.put(date_num_link_file_names)
+        print 'Adding to que', x
+        q.put(x)
     
     q.join()
     
