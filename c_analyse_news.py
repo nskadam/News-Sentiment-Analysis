@@ -5,18 +5,18 @@ Created on Sun Sep 14 11:13:01 2014
 @author: Nilesh
 """
 
-import requests
-import bs4
-import re 
 import os
-import pickle
 from lxml import html
 import xlrd 
 import time
 import json
-from pandas.io.json import json_normalize
 from datetime import datetime
 import pandas as pd
+from pandas import *
+from datetime import datetime
+import ner
+import subprocess
+
 
 os.chdir('D:\\0. Nilesh Files\\7.1. Personal\\12.3. News\\2. Data Processing\\31. Python News Scrapping')
 
@@ -25,6 +25,7 @@ def parse_news_content(content, link):
     tree = html.fromstring(content)
     header = tree.xpath('//*[@id="mod-article-header"]/h1/text()')
     datetime_news_publish = tree.xpath('//*[@id="mod-article-byline"]/span[3]//text()')
+    # datetime_news_publish = tree.xpath('//*[@id="pageContent"]/article/div[2]/div[1]//text()')
     body = tree.xpath('//*[@id="mod-a-body-first-para"]//text()')
     body = body + tree.xpath('//*[@id="mod-a-body-after-first-para"]//text()')
     return str(json.dumps({'link':link, 'header':header[0], 'datetime_news_publish' : datetime_news_publish[0], 'body' : body}))
@@ -32,7 +33,7 @@ def parse_news_content(content, link):
         
 def parse_news_webpages():
     date_number_first = 41894  
-    date_number_last = 41090 #36892
+    date_number_last = 41890 #36892
     parsed_news = list()
     for date_number in range(date_number_first, date_number_last, -1):
         date_tup = xlrd.xldate_as_tuple(date_number,0)      
@@ -63,11 +64,35 @@ def data_frame_from_parsed_news_json(parsed_news):
         header.append(pn['header'])
         datetime_news_publish.append(pn['datetime_news_publish'])
     df = pd.DataFrame([link, datetime_news_publish, header, body]).T
+    df.columns = ['link', 'datetime_news_publish', 'header', 'body']
     return df
+
+def parser_data_frame_to_required_columns(df):
+    df_out= df
+    df_out['datetime_news_publish']    
+    
+def get_ner_tagged_text(df):
+    tagger = ner.SocketNER(host='localhost', port=8080)
+    txt_tagged =  []
+    for txt in df.header.map(str) + df.body.map(str):
+        txt_tagged.append(tagger.get_entities(txt))
+        #print 'Tagged:', tagger.get_entities(txt)
+    df['ner'] = txt_tagged   
+    df_ner= pandas.io.json.read_json(txt_tagged)   
+    
+    
+def get_sentiment_score(df):
+    
     
 def main():
+    time_start = datetime.now()
     parsed_news = parse_news_webpages()
+    print 'Time taken:', datetime.now()-time_start
     df = data_frame_from_parsed_news_json(parsed_news)
+    df = get_sentiment_score(df)
+    df.to_csv('parsed_news.csv')
+    
+    
     
 if __name__ == '__main__':
     main()    
