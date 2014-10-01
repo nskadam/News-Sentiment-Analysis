@@ -33,7 +33,7 @@ def parse_news_content(content, link):
         
 def parse_news_webpages():
     date_number_first = 41894  
-    date_number_last = 41890 #36892
+    date_number_last = 36892 #$41890 
     parsed_news = list()
     for date_number in range(date_number_first, date_number_last, -1):
         date_tup = xlrd.xldate_as_tuple(date_number,0)      
@@ -74,14 +74,53 @@ def parser_data_frame_to_required_columns(df):
 def get_ner_tagged_text(df):
     tagger = ner.SocketNER(host='localhost', port=8080)
     txt_tagged =  []
+    i = 1
     for txt in df.header.map(str) + df.body.map(str):
+        print 'Working on item:', i, '\tof', len(df) 
         txt_tagged.append(tagger.get_entities(txt))
+        if i % 100 == 0:
+            df_temp = df.ix[range(i)]
+            df_temp['ner'] = txt_tagged  
+            df_temp = get_sentiment_score(df_temp)
+            triplet =  get_entity_sentment_triplet(df_temp)
+            write_triplet_to_file(triplet)
+        i = i + 1
         #print 'Tagged:', tagger.get_entities(txt)
-    df['ner'] = txt_tagged   
-    df_ner= pandas.io.json.read_json(txt_tagged)   
-    
+    df['ner'] = txt_tagged  
+    print 'NER Finished' 
+    #df_ner= pandas.io.json.read_json(txt_tagged)   
+    return df
     
 def get_sentiment_score(df):
+    df['sentment_score'] = 3
+    return df
+
+def get_entity_sentment_triplet(df):
+    triplet = []
+    for i in range(len(df)):
+        # print 'Working on link:', i, '\tof', len(df)
+        try:        
+            date_news_publish =  str(datetime.strptime(df.datetime_news_publish.iat[i][0:12], '%b %d, %Y'))
+        except:
+            date_news_publish = 'Error while Parsing'
+        link = df.link.iat[i]
+        sentment_score = df.sentment_score.iat[i]
+        try:
+            for org in set(df.ner.iat[i]['ORGANIZATION']):
+                triplet.append([date_news_publish, link, org, sentment_score])
+        except:
+            pass
+    return triplet
+    
+def write_triplet_to_file(triplet):
+    file =  open('triplet_news.csv','w')    
+    file.write('date_news_publish,link,organisation, sentiment_score\n')
+    for item in triplet:
+        for i in item:
+            file.write(str(i))
+            file.write(',')
+        file.write('\n')
+    file.close()
     
     
 def main():
@@ -89,8 +128,15 @@ def main():
     parsed_news = parse_news_webpages()
     print 'Time taken:', datetime.now()-time_start
     df = data_frame_from_parsed_news_json(parsed_news)
-    df = get_sentiment_score(df)
     df.to_csv('parsed_news.csv')
+    
+    df = pd.read_csv('parsed_news.csv')
+    time_start = datetime.now()
+    df = get_ner_tagged_text(df)
+    print 'Time taken:', datetime.now()-time_start
+    df = get_sentiment_score(df)
+    triplet =  get_entity_sentment_triplet(df)
+    write_triplet_to_file(triplet)
     
     
     
