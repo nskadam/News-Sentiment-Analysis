@@ -75,15 +75,20 @@ def get_ner_tagged_text(df):
     tagger = ner.SocketNER(host='localhost', port=8080)
     txt_tagged =  []
     i = 1
+    time_start = datetime.now()
     for txt in df.header.map(str) + df.body.map(str):
-        print 'Working on item:', i, '\tof', len(df) 
-        txt_tagged.append(tagger.get_entities(txt))
-        if i % 100 == 0:
-            df_temp = df.ix[range(i)]
-            df_temp['ner'] = txt_tagged  
-            df_temp = get_sentiment_score(df_temp)
-            triplet =  get_entity_sentment_triplet(df_temp)
-            write_triplet_to_file(triplet)
+        try:        
+            txt_tagged.append(tagger.get_entities(txt))
+            if i % 100 == 0:
+                print 'Working on item:', i, '\tof', len(df) 
+                df_temp = df.ix[range(i)]
+                df_temp['ner'] = txt_tagged  
+                df_temp = get_sentiment_score(df_temp)
+                triplet =  get_entity_sentment_triplet(df_temp)
+                write_triplet_to_file(triplet)
+                print 'Time remaining:', (datetime.now()-time_start)/i * (len(df)-i)
+        except:
+            txt_tagged.append('Error while tagging')
         i = i + 1
         #print 'Tagged:', tagger.get_entities(txt)
     df['ner'] = txt_tagged  
@@ -116,10 +121,13 @@ def write_triplet_to_file(triplet):
     file =  open('triplet_news.csv','w')    
     file.write('date_news_publish,link,organisation, sentiment_score\n')
     for item in triplet:
-        for i in item:
-            file.write(str(i))
-            file.write(',')
-        file.write('\n')
+        try:        
+            for it in item:
+                file.write(str(it))
+                file.write(',')
+            file.write('\n')
+        except:
+            pass
     file.close()
     
     
